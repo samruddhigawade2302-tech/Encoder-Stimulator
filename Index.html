@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Encoder Simulator</title>
+<style>
+:root {
+  --bg:#080d17; --panel:#101827; --panel2:#0c1423;
+  --border:#202d41; --blue:#08b9ff; --text:#edf5ff;
+  --muted:#91a6c4; --green:#43e99a;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:Inter,"Segoe UI",Arial,sans-serif; font-size:15px;
+}
+header.topbar {
+  margin:0 16px; padding:20px 0 25px; display:flex; justify-content:space-between;
+  gap:15px; align-items:center; color:#b5c9e7; border-bottom:1px solid var(--border);
+}
+.brand,.top-controls,.hero-line { display:flex; align-items:center; }
+.brand { gap:14px; }
+.brand-icon { width:46px; height:46px; display:grid; place-items:center; border:1px solid #086b9b;
+  border-radius:13px; color:var(--blue); background:#0a2034; font-size:28px; }
+.brand-name { color:#f1f6ff; font-weight:700; letter-spacing:2px; font-size:16px; }
+.brand-sub { color:#7890b2; font:10px monospace; letter-spacing:2px; margin-top:6px; }
+.top-controls { gap:9px; }
+.top-label { color:#7890b2; font:11px monospace; letter-spacing:2px; margin-right:7px; }
+.top-controls .choice { min-width:64px; padding:11px 17px; font:14px monospace; letter-spacing:1px; }
+.reset-top { background:transparent; border:0; color:#91a6c4; font-size:25px; padding:5px 10px; margin-left:5px; }
+.hero { padding:58px 16px 42px; }
+.hero-kicker { color:var(--blue); font:12px monospace; letter-spacing:2px; margin-bottom:18px; }
+.hero-line { justify-content:space-between; gap:20px; }
+.hero h1 { font-size:38px; letter-spacing:-1.5px; margin:0 0 12px; }
+.hero p { color:var(--muted); font-size:17px; margin:0; }
+.hero .status { flex-shrink:0; padding:14px 17px; }
+.status {
+  border:1px solid var(--border); border-radius:30px;
+  padding:11px 16px; font-size:11px; letter-spacing:2px; white-space:nowrap;
+}
+.dot {
+  display:inline-block; width:9px; height:9px; background:var(--green);
+  border-radius:50%; margin-right:9px;
+}
+.encoder-choice {
+  display:flex; gap:10px; justify-content:center; margin:0 16px 16px;
+}
+button { font:inherit; cursor:pointer; }
+.choice, nav button, .action, .toggle {
+  border:1px solid var(--border); color:var(--muted);
+  background:#0c1321; border-radius:9px; padding:11px 16px;
+}
+.choice.active, nav button.active {
+  color:white; background:#102746; border-color:#086b9b;
+}
+nav {
+  display:grid; grid-template-columns:repeat(4,1fr); margin:0 16px 20px;
+  border:1px solid var(--border); border-radius:16px; overflow:hidden;
+}
+nav button {
+  border:0; border-right:1px solid var(--border); border-radius:0;
+  padding:23px 12px; text-align:left;
+}
+nav button:last-child { border-right:0; }
+nav button.active { box-shadow:inset 0 -3px var(--blue); }
+nav span { color:var(--blue); margin-right:8px; font-size:12px; }
+main {
+  margin:0 16px 20px; background:var(--panel);
+  border:1px solid var(--border); border-radius:20px; overflow:hidden;
+}
+.panel-head {
+  padding:28px 32px; border-bottom:1px solid var(--border);
+  display:flex; justify-content:space-between; align-items:center; gap:20px;
+}
+.eyebrow { color:var(--blue); font-family:monospace; letter-spacing:2px; font-size:11px; }
+h1 { font-size:28px; margin:13px 0 0; }
+h2 { font-size:20px; margin:0 0 8px; }
+h3 { font-size:15px; }
+.meta { color:var(--muted); font-family:monospace; font-size:11px; letter-spacing:1px; text-align:right; }
+.content { padding:32px; }
+.section-title { display:flex; align-items:flex-start; gap:18px; margin-bottom:27px; }
+.step {
+  border:1px solid #086b9b; background:#0a2a43; color:var(--blue);
+  padding:13px; border-radius:12px; font-family:monospace;
+}
+p { color:var(--muted); line-height:1.7; margin:5px 0; }
+.diagram {
+  background-color:#080e18;
+  background-image:radial-gradient(#233149 .7px,transparent .7px);
+  background-size:22px 22px; border:1px solid var(--border);
+  border-radius:16px; padding:18px; overflow-x:auto;
+}
+svg { width:100%; min-width:540px; height:auto; display:block; }
+svg text { font-family:"Segoe UI",Arial,sans-serif; }
+.wire { fill:none; stroke:#344761; stroke-width:3; }
+.wire.on { stroke:var(--blue); stroke-width:4; }
+.gate { fill:#101a2d; stroke:#526985; stroke-width:2; }
+.gate.on { stroke:var(--blue); }
+.equations {
+  display:flex; align-items:center; gap:25px; flex-wrap:wrap;
+  margin-top:18px; padding:22px; border:1px solid var(--border);
+  background:var(--panel2); border-radius:13px;
+}
+.equations label { color:var(--muted); font:11px monospace; letter-spacing:1.5px; }
+.equations code { color:var(--blue); font-size:15px; }
+.notice {
+  margin-top:18px; padding:16px; background:#0a2030;
+  border:1px solid #17405a; border-radius:12px; color:#b8dfff; line-height:1.7;
+}
+.sim-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:15px; }
+.input-card,.output-card {
+  padding:22px; border:1px solid var(--border);
+  background:var(--panel2); border-radius:14px;
+}
+.input-card { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.input-card strong { font-size:18px; }
+.input-card small { color:var(--muted); display:block; margin-top:6px; }
+.toggle { min-width:75px; color:white; background:#182337; border-color:#394960; }
+.toggle.on { background:#064d75; border-color:var(--blue); }
+.output-card { text-align:center; }
+.output-value { font-size:38px; font-family:monospace; color:var(--muted); margin:14px; }
+.output-value.on { color:var(--blue); }
+.action-row { display:flex; flex-wrap:wrap; gap:12px; margin:20px 0; }
+.action { background:#087eb6; border-color:#159edc; color:white; padding:12px 18px; }
+.action.secondary { background:#121d2e; border-color:var(--border); }
+table { width:100%; border-collapse:collapse; text-align:center; }
+th,td { padding:13px 9px; border-bottom:1px solid var(--border); }
+th { background:#101f34; color:var(--blue); font-weight:500; }
+td { color:#d6e3f7; }
+tr.current td { background:#10304b; color:white; }
+.table-wrap { overflow-x:auto; }
+.footer {
+  border-top:1px solid var(--border); padding:20px 30px;
+  display:flex; justify-content:space-between; align-items:center; gap:12px;
+}
+.footer button:disabled { opacity:.35; cursor:not-allowed; }
+.step-count { color:var(--muted); font:12px monospace; }
+.page { display:none; }
+.page.active { display:block; }
+@media(max-width:650px) {
+  header.topbar { margin:0 12px; padding:16px 0; flex-wrap:wrap; }
+  .top-controls { gap:6px; }
+  .top-label { display:none; }
+  .hero { padding:38px 12px 28px; }
+  .hero-line { align-items:flex-start; flex-direction:column; }
+  .hero h1 { font-size:29px; }
+  nav { margin:0 8px 12px; }
+  nav button { padding:14px 7px; font-size:11px; }
+  nav span { display:block; margin-bottom:6px; }
+  main { margin:0 8px 12px; }
+  .panel-head,.content { padding:20px 16px; }
+  .panel-head { align-items:flex-start; flex-direction:column; }
+  .meta { text-align:left; }
+  h1 { font-size:24px; }
+  .sim-grid { grid-template-columns:1fr; }
+  .footer { padding:15px; }
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-icon">ϟ</div>
+    <div><div class="brand-name">DIGITAL LOGIC LAB</div><div class="brand-sub">ENCODER WORKBENCH / 01</div></div>
+  </div>
+  <div class="top-controls">
+    <span class="top-label">ENCODER</span>
+    <button class="choice active" id="choose4" onclick="changeEncoder(4)">4:2</button>
+    <button class="choice" id="choose8" onclick="changeEncoder(8)">8:3</button>
+    <button class="reset-top" onclick="resetSimulation()" aria-label="Reset simulator" title="Reset simulator">↶</button>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="hero-kicker">DIGITAL ELECTRONICS / ENCODERS</div>
+  <div class="hero-line">
+    <div>
+      <h1>From one-hot input to binary code.</h1>
+      <p>Trace the signal from the encoder block to each OR gate, then verify the output.</p>
+    </div>
+    <div class="status"><span class="dot"></span>SIMULATOR READY</div>
+  </div>
+</section>
+
+<nav>
+  <button class="active" data-page="0" onclick="showPage(0)"><span>01</span>Block diagram</button>
+  <button data-page="1" onclick="showPage(1)"><span>02</span>Logic diagram</button>
+  <button data-page="2" onclick="showPage(2)"><span>03</span>Simulation</button>
+  <button data-page="3" onclick="showPage(3)"><span>04</span>Truth table</button>
+</nav>
+
+<main>
+  <div class="panel-head">
+    <div><div class="eyebrow" id="stepLabel">STEP 01 / 04</div><h1 id="pageTitle">Block diagram</h1></div>
+    <div class="meta" id="meta">4:2 ENCODER | 4 INPUTS · 2 OUTPUTS</div>
+  </div>
+
+  <section class="page active" id="page0">
+    <div class="content">
+      <div class="section-title"><div class="step">01</div><div>
+        <h2>The encoder as a system</h2><p>Start with the input and output pins before opening the logic.</p>
+      </div></div>
+      <div class="diagram" id="blockDiagram"></div>
+      <div class="equations"><label>BOOLEAN EQUATIONS</label><span id="blockEquations"></span></div>
+      <div class="notice" id="blockNote"></div>
+    </div>
+  </section>
+
+  <section class="page" id="page1">
+    <div class="content">
+      <div class="section-title"><div class="step">02</div><div>
+        <h2>Gate-level logic</h2><p>Trace each input wire to the OR gate and follow the output.</p>
+      </div></div>
+      <div class="diagram" id="logicDiagram"></div>
+      <div class="equations"><label>BOOLEAN EQUATIONS</label><span id="logicEquations"></span></div>
+    </div>
+  </section>
+
+  <section class="page" id="page2">
+    <div class="content">
+      <div class="section-title"><div class="step">03</div><div>
+        <h2>Interactive simulation</h2><p>Activate one input and observe the encoded binary output.</p>
+      </div></div>
+      <p>Select one input:</p>
+      <div class="sim-grid" id="inputGrid"></div>
+      <div class="action-row">
+        <button class="action" onclick="nextInput()">Next input →</button>
+        <button class="action secondary" onclick="resetSimulation()">Reset simulation</button>
+      </div>
+      <div class="sim-grid" id="outputGrid"></div>
+      <div class="notice" id="simulationMessage">No input is active. Select an input to begin.</div>
+      <h2 style="margin:28px 0 12px">Live logic diagram</h2>
+      <p style="margin-bottom:14px">The same OR-gate circuit is shown here. The selected input signal is highlighted.</p>
+      <div class="diagram" id="simulationDiagram"></div>
+      <div class="equations"><label>BOOLEAN EQUATIONS</label><span id="simulationEquations"></span></div>
+    </div>
+  </section>
+
+  <section class="page" id="page3">
+    <div class="content">
+      <div class="section-title"><div class="step">04</div><div>
+        <h2>Encoder truth table</h2><p>Check the binary output for each valid input combination.</p>
+      </div></div>
+      <div class="table-wrap"><table id="truthTable"></table></div>
+      <div class="notice" id="truthNote"></div>
+    </div>
+  </section>
+
+  <div class="footer">
+    <button class="action secondary" id="previous" onclick="showPage(currentPage-1)" disabled>← Previous</button>
+    <div class="step-count" id="stepCount">01 / 04</div>
+    <button class="action" id="next" onclick="showPage(currentPage+1)">Next →</button>
+  </div>
+</main>
+
+<script>
+let size = 4;
+let activeInput = -1;
+let currentPage = 0;
+
+function outputNames() {
+  return size === 4 ? ["A", "B"] : ["Y2", "Y1", "Y0"];
+}
+
+function equations() {
+  if (size === 4) {
+    return ["A = D2 + D3", "B = D1 + D3"];
+  }
+  return [
+    "Y2 = D4 + D5 + D6 + D7",
+    "Y1 = D2 + D3 + D6 + D7",
+    "Y0 = D1 + D3 + D5 + D7"
+  ];
+}
+
+function changeEncoder(n) {
+  size = n;
+  activeInput = -1;
+  document.getElementById("choose4").classList.toggle("active", n === 4);
+  document.getElementById("choose8").classList.toggle("active", n === 8);
+  document.getElementById("meta").textContent =
+    (n === 4 ? "4:2 ENCODER | 4 INPUTS · 2 OUTPUTS" :
+               "8:3 ENCODER | 8 INPUTS · 3 OUTPUTS");
+  drawBlockDiagram();
+  drawLogicDiagram();
+  makeSimulation();
+  makeTruthTable();
+  showPage(0);
+}
+
+function showPage(n) {
+  currentPage = Math.max(0, Math.min(3, n));
+  document.querySelectorAll(".page").forEach((p, i) =>
+    p.classList.toggle("active", i === currentPage));
+  document.querySelectorAll("nav button").forEach((b, i) =>
+    b.classList.toggle("active", i === currentPage));
+  let titles = ["Block diagram", "Logic diagram", "Simulation", "Truth table"];
+  document.getElementById("pageTitle").textContent = titles[currentPage];
+  document.getElementById("stepLabel").textContent =
+    "STEP 0" + (currentPage + 1) + " / 04";
+  document.getElementById("stepCount").textContent =
+    "0" + (currentPage + 1) + " / 04";
+  document.getElementById("previous").disabled = currentPage === 0;
+  document.getElementById("next").disabled = currentPage === 3;
+}
+
+function drawBlockDiagram() {
+  let inputs = "";
+  let wires = "";
+  let count = size;
+  let top = size === 4 ? 105 : 65;
+  let gap = size === 4 ? 45 : 34;
+  for (let i = 0; i < count; i++) {
+    let y = top + i * gap;
+    inputs += `<text x="65" y="${y+5}" fill="#eaf4ff" font-size="13">D${i}</text>`;
+    wires += `<path class="wire" d="M110 ${y} H300"/>`;
+  }
+  let outputs = "";
+  let outNames = outputNames();
+  let center = size === 4 ? 170 : 170;
+  let outGap = size === 4 ? 60 : 45;
+  outNames.forEach((name, i) => {
+    let y = center + (i - (outNames.length - 1) / 2) * outGap;
+    outputs += `<path class="wire" d="M490 170 H545 V${y} H600"/>
+      <text x="620" y="${y+5}" fill="#eaf4ff" font-size="14">${name} = <tspan id="block${name}">${activeInput < 0 ? 0 : outputBits(activeInput)[i]}</tspan></text>`;
+  });
+  document.getElementById("blockDiagram").innerHTML = `
+    <svg viewBox="0 0 800 340" role="img" aria-label="${size} input encoder block diagram">
+      <text x="65" y="35" fill="#6883a9" font-size="10" letter-spacing="2">INPUT LINES</text>
+      <text x="605" y="35" fill="#6883a9" font-size="10" letter-spacing="2">OUTPUT CODE</text>
+      ${inputs}${wires}
+      <rect x="300" y="85" width="190" height="170" rx="16" fill="#101a2d" stroke="#08b9ff" stroke-width="2"/>
+      <text x="395" y="160" text-anchor="middle" fill="#ffffff" font-size="18" font-weight="bold">${size}:${outNames.length} Encoder</text>
+      <text x="395" y="184" text-anchor="middle" fill="#08b9ff" font-size="10" letter-spacing="2">ONE-HOT → BINARY</text>
+      ${outputs}
+    </svg>`;
+  document.getElementById("blockEquations").innerHTML =
+    equations().map(e => `<code style="margin-right:20px">${e}</code>`).join("");
+  document.getElementById("blockNote").innerHTML =
+    `<strong>Working principle:</strong> A ${size}:${outNames.length} encoder converts one active input into a ${outNames.length}-bit binary code. ` +
+    `For example, D0 produces ${"0".repeat(outNames.length)} and D${size-1} produces ${"1".repeat(outNames.length)}.`;
+}
+
+function drawLogicDiagram() {
+  const names = outputNames();
+  const termsByOutput = size === 4
+    ? [[2, 3], [1, 3]]
+    : [[4, 5, 6, 7], [2, 3, 6, 7], [1, 3, 5, 7]];
+  const inputTop = size === 4 ? 105 : 65;
+  const inputGap = size === 4 ? 65 : 48;
+  const gateTop = size === 4 ? 75 : 55;
+  const gateGap = size === 4 ? 160 : 155;
+  const gateX = 565, gateW = 100, gateH = size === 4 ? 100 : 120;
+  const height = size === 4 ? 360 : 520;
+  let svg = `<svg viewBox="0 0 900 ${height}" role="img" aria-label="${size}:${names.length} encoder OR gate logic diagram">
+    <text x="38" y="28" fill="#6883a9" font-size="11" letter-spacing="2">INPUT LINES</text>
+    <text x="720" y="28" fill="#6883a9" font-size="11" letter-spacing="2">OUTPUTS</text>`;
+  const inputY = {};
+  for (let i=0; i<size; i++) {
+    const y = inputTop + i*inputGap;
+    inputY[i] = y;
+    svg += `<text x="38" y="${y+5}" fill="#eaf4ff" font-size="15">D${i}</text>`;
+    svg += `<circle cx="91" cy="${y}" r="3.5" fill="#dceaff"/>`;
+  }
+  termsByOutput.forEach((terms, index) => {
+    const y = gateTop + index*gateGap;
+    const center = y + gateH/2;
+    const spacing = size === 4 ? 28 : 24;
+    const first = center - (terms.length-1)*spacing/2;
+    terms.forEach((input, j) => {
+      const pinY = first + j*spacing;
+      // Separate routing lanes keep each OR-gate input easy to follow.
+      const laneX = 190 + index*30 + j*13;
+      const isActive = activeInput === input;
+      svg += `<path class="wire ${isActive ? 'on' : ''}" d="M91 ${inputY[input]} H${laneX} V${pinY} H${gateX}"/>`;
+      if (isActive) svg += `<circle cx="91" cy="${inputY[input]}" r="5" fill="#08b9ff"/>`;
+    });
+    // OR-gate symbol with a wide body and clearly spaced input pins.
+    svg += `<path class="gate ${terms.includes(activeInput) ? 'on' : ''}" d="M${gateX} ${y} Q${gateX+42} ${y} ${gateX+gateW} ${center} Q${gateX+42} ${y+gateH} ${gateX} ${y+gateH} Q${gateX+25} ${center} ${gateX} ${y} Z"/>`;
+    svg += `<text x="${gateX+47}" y="${center+5}" text-anchor="middle" fill="#ffffff" font-size="15">OR</text>`;
+    svg += `<path class="wire ${terms.includes(activeInput) ? 'on' : ''}" d="M${gateX+gateW} ${center} H705"/>`;
+    svg += `<text x="722" y="${center+6}" fill="#08b9ff" font-size="17" font-weight="600">${names[index]}</text>`;
+  });
+  svg += `</svg>`;
+  document.getElementById("logicDiagram").innerHTML = svg;
+  document.getElementById("logicEquations").innerHTML =
+    equations().map(e => `<code style="margin-right:20px">${e}</code>`).join("");
+  document.getElementById("simulationDiagram").innerHTML = svg;
+  document.getElementById("simulationEquations").innerHTML =
+    equations().map(e => `<code style="margin-right:20px">${e}</code>`).join("");
+}
+
+function outputBits(n) {
+  return n.toString(2).padStart(size === 4 ? 2 : 3, "0").split("");
+}
+
+function makeSimulation() {
+  let html = "";
+  for (let i = 0; i < size; i++) {
+    let bits = outputBits(i).join("");
+    html += `<div class="input-card"><div><strong>D${i}</strong><small>Binary code: ${bits}</small></div>
+      <button class="toggle" id="toggle${i}" onclick="simulate(${i})">OFF</button></div>`;
+  }
+  document.getElementById("inputGrid").innerHTML = html;
+  document.getElementById("outputGrid").innerHTML = outputNames().map(name =>
+    `<div class="output-card"><p>OUTPUT ${name}</p><div class="output-value" id="out${name}">0</div>
+    <code>${equations()[outputNames().indexOf(name)]}</code></div>`).join("");
+  resetSimulation();
+}
+
+function simulate(n) {
+  activeInput = n;
+  let bits = outputBits(n);
+  outputNames().forEach((name, i) => {
+    let el = document.getElementById("out" + name);
+    el.textContent = bits[i];
+    el.classList.toggle("on", bits[i] === "1");
+    let block = document.getElementById("block" + name);
+    if (block) block.textContent = bits[i];
+  });
+  for (let i = 0; i < size; i++) {
+    let button = document.getElementById("toggle" + i);
+    button.classList.toggle("on", i === n);
+    button.textContent = i === n ? "ON" : "OFF";
+  }
+  document.getElementById("simulationMessage").textContent =
+    `Input D${n} is HIGH. Output code = ${bits.join("")}.`;
+  makeTruthTable();
+  drawLogicDiagram();
+}
+
+function resetSimulation() {
+  activeInput = -1;
+  outputNames().forEach(name => {
+    let el = document.getElementById("out" + name);
+    if (el) { el.textContent = "0"; el.classList.remove("on"); }
+    let block = document.getElementById("block" + name);
+    if (block) block.textContent = "0";
+  });
+  for (let i = 0; i < size; i++) {
+    let button = document.getElementById("toggle" + i);
+    if (button) { button.classList.remove("on"); button.textContent = "OFF"; }
+  }
+  document.getElementById("simulationMessage").textContent =
+    "No input is active. Select an input to begin.";
+  makeTruthTable();
+  drawLogicDiagram();
+}
+
+function nextInput() {
+  simulate((activeInput + 1) % size);
+}
+
+function makeTruthTable() {
+  let names = outputNames();
+  let html = "<thead><tr><th>Active input</th>";
+  for (let i = 0; i < size; i++) html += `<th>D${i}</th>`;
+  names.forEach(name => html += `<th>${name}</th>`);
+  html += "</tr></thead><tbody>";
+  for (let n = 0; n < size; n++) {
+    let bits = outputBits(n);
+    html += `<tr class="${activeInput === n ? "current" : ""}"><td>D${n}</td>`;
+    for (let i = 0; i < size; i++) html += `<td>${i === n ? 1 : 0}</td>`;
+    bits.forEach(bit => html += `<td>${bit}</td>`);
+    html += "</tr>";
+  }
+  html += "</tbody>";
+  document.getElementById("truthTable").innerHTML = html;
+  document.getElementById("truthNote").innerHTML =
+    `<strong>Observation:</strong> The truth table shows the binary code for each active input. The encoder assumes only one input is HIGH at a time.`;
+}
+
+changeEncoder(4);
+</script>
+</body>
+</html>
